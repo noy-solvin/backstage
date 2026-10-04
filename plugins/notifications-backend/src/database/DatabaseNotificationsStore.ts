@@ -464,6 +464,10 @@ export class DatabaseNotificationsStore implements NotificationsStore {
       topic: notification.payload.topic,
       updated: new Date(),
       severity: normalizeSeverity(notification.payload?.severity),
+      // PR #34669: Ensure metadata is updated when restoring existing notifications or broadcasts
+      metadata: notification.payload?.metadata
+        ? JSON.stringify(notification.payload.metadata)
+        : null,
       read: null,
     };
 

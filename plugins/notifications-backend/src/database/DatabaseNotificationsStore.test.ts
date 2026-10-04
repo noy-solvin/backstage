@@ -247,6 +247,29 @@ describe.each(databases.eachSupportedId())(
         expect(saved?.payload.metadata).toEqual({ key: 'value' });
       });
 
+      it('should preserve metadata for broadcast notifications', async () => {
+        const metadataBroadcast = {
+          ...testNotification1,
+          id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+          payload: {
+            ...testNotification1.payload,
+            metadata: { key: 'broadcast-value' },
+          },
+        };
+        await storage.saveBroadcast(metadataBroadcast);
+
+        const notifications = await storage.getNotifications({ user });
+        const saved = notifications.find(
+          n => n.id === 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+        );
+        expect(saved?.payload.metadata).toEqual({ key: 'broadcast-value' });
+
+        const single = await storage.getNotification({
+          id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+        });
+        expect(single?.payload.metadata).toEqual({ key: 'broadcast-value' });
+      });
+
       it('should return null value for user for broadcast notifications', async () => {
         await storage.saveBroadcast({ ...testNotification1, read: new Date() });
         const notifications = await storage.getNotifications({ user });
@@ -641,6 +664,79 @@ describe.each(databases.eachSupportedId())(
         expect(existing?.id).toEqual(id2);
         expect(existing?.payload.title).toEqual('New notification');
         expect(existing?.read).toBeNull();
+      });
+
+      it('should update metadata when restoring existing scope notification', async () => {
+        await storage.saveNotification({
+          ...testNotification2,
+          payload: {
+            ...testNotification2.payload,
+            metadata: { key: 'old-value' },
+          },
+        });
+
+        const existing = await storage.restoreExistingNotification({
+          id: id2,
+          notification: {
+            user: testNotification2.user,
+            payload: {
+              title: 'New notification',
+              link: '/scaffolder/task/1234',
+              severity: 'low',
+              metadata: { key: 'new-value' },
+            },
+          } as any,
+        });
+        expect(existing).not.toBeNull();
+        expect(existing?.id).toEqual(id2);
+        expect(existing?.payload.title).toEqual('New notification');
+        expect(existing?.payload.severity).toEqual('low');
+        expect(existing?.read).toBeNull();
+        expect(existing?.payload.metadata).toEqual({ key: 'new-value' });
+
+        const restored = await storage.getNotification({
+          id: id2,
+          user: testNotification2.user,
+        });
+        expect(restored?.payload.metadata).toEqual({ key: 'new-value' });
+      });
+
+      it('should update metadata when restoring existing scope broadcast', async () => {
+        await storage.saveBroadcast({
+          ...testNotification2,
+          payload: {
+            ...testNotification2.payload,
+            metadata: { key: 'old-broadcast-value' },
+          },
+        });
+
+        const existing = await storage.restoreExistingNotification({
+          id: id2,
+          notification: {
+            user: testNotification2.user,
+            payload: {
+              title: 'New notification',
+              link: '/scaffolder/task/1234',
+              severity: 'normal',
+              metadata: { key: 'new-broadcast-value' },
+            },
+          } as any,
+        });
+        expect(existing).not.toBeNull();
+        expect(existing?.id).toEqual(id2);
+        expect(existing?.payload.title).toEqual('New notification');
+        expect(existing?.read).toBeNull();
+        expect(existing?.payload.metadata).toEqual({
+          key: 'new-broadcast-value',
+        });
+
+        const restored = await storage.getNotification({
+          id: id2,
+          user: testNotification2.user,
+        });
+        expect(restored?.payload.metadata).toEqual({
+          key: 'new-broadcast-value',
+        });
       });
     });
 
